@@ -1,8 +1,12 @@
 use crate::format::data::Format;
 use crate::widget::base::Sender;
 use crate::widget::music::{MusicBackend, MusicControl, PlaybackInfo, SongInfo};
-use dbus::arg::Array;
-use dbus::{BusType, Connection, Message, MessageItem, Props};
+use dbus::arg::{Array, RefArg, Variant};
+use dbus::blocking::stdintf::org_freedesktop_dbus::Properties;
+use dbus::blocking::{BlockingSender, Connection};
+use dbus::channel::Sender as DbusSender;
+use dbus::Message;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
@@ -15,52 +19,11 @@ fn find_player(bus: &Connection) -> Option<String> {
         "ListNames",
     )
     .unwrap();
-    let r = bus.send_with_reply_and_block(m, 2000).unwrap();
+    let t = Duration::from_millis(2000);
+    let r = bus.send_with_reply_and_block(m, t).unwrap();
     let mut arr: Array<&str, _> = r.get1().unwrap();
     arr.find(|s| s.starts_with("org.mpris.MediaPlayer2."))
         .map(|s| s.to_owned())
-}
-
-fn extract_i64(item: &MessageItem) -> Option<i64> {
-    match *item {
-        MessageItem::Int16(x) => Some(i64::from(x)),
-        MessageItem::Int32(x) => Some(i64::from(x)),
-        MessageItem::Int64(x) => Some(x),
-        MessageItem::UInt16(x) => Some(i64::from(x)),
-        MessageItem::UInt32(x) => Some(i64::from(x)),
-        MessageItem::Variant(ref x) => extract_i64(x),
-        _ => None,
-    }
-}
-
-fn extract_str(item: &MessageItem) -> Option<String> {
-    match *item {
-        MessageItem::Str(ref x) => Some((*x).clone()),
-        MessageItem::Array(ref x, _) => Some(
-            x.iter()
-                .map(|y| extract_str(y).unwrap_or_default())
-                .collect::<Vec<_>>()
-                .join(", "),
-        ),
-        MessageItem::Variant(ref x) => extract_str(x),
-        _ => None,
-    }
-}
-
-fn get_entry<'a>(entries: &'a [MessageItem], key: &str) -> Option<&'a MessageItem> {
-    entries
-        .iter()
-        .find(|e| match *e {
-            MessageItem::DictEntry(ref k, _) => match **k {
-                MessageItem::Str(ref x) if x == key => true,
-                _ => false,
-            },
-            _ => false,
-        })
-        .and_then(|e| match *e {
-            MessageItem::DictEntry(_, ref v) => Some(&**v),
-            _ => None,
-        })
 }
 
 pub struct MPRISMusic {
@@ -75,7 +38,7 @@ impl MPRISMusic {
     }
 
     fn call_method(&self, method: &str) {
-        let bus = Connection::get_private(BusType::Session)
+        let bus = Connection::new_session()
             .expect("Could not connect to D-Bus session bus for music control");
         if let Some(player) = find_player(&bus) {
             let m = Message::new_method_call(
@@ -127,68 +90,63 @@ where
     fn spawn_notifier(&mut self, tx: Sender<()>, updater: Arc<Box<F>>) {
         let last_value = self.last_value.clone();
         thread::spawn(move || {
-            let bus = Connection::get_private(BusType::Session)
+            let bus = Connection::new_session()
                 .expect("Could not connect to D-Bus session bus for music info");
             loop {
                 if let Some(player) = find_player(&bus) {
-                    if let Ok(props) = Props::new(
-                        &bus,
+                    let properties = &bus.with_proxy(
                         player,
                         "/org/mpris/MediaPlayer2",
-                        "org.mpris.MediaPlayer2.Player",
-                        500,
-                    )
-                    .get_all()
-                    {
-                        if let Some(&MessageItem::Array(ref metas, _)) = props.get("Metadata") {
-                            let state = SongInfo {
-                                title: get_entry(metas, "xesam:title")
-                                    .and_then(|m| extract_str(m))
-                                    .unwrap_or_default(),
-                                artist: get_entry(metas, "xesam:artist")
-                                    .and_then(|m| extract_str(m))
-                                    .unwrap_or_default(),
-                                album: get_entry(metas, "xesam:album")
-                                    .and_then(|m| extract_str(m))
-                                    .unwrap_or_default(),
-                                filename: get_entry(metas, "xesam:url")
-                                    .and_then(|m| extract_str(m))
-                                    .unwrap_or_default(),
-                                musicbrainz_track: get_entry(metas, "xesam:musicBrainzTrackID")
-                                    .and_then(|m| extract_str(m)),
-                                musicbrainz_artist: get_entry(metas, "xesam:musicBrainzArtistID")
-                                    .and_then(|m| extract_str(m)),
-                                musicbrainz_album: get_entry(metas, "xesam:musicBrainzAlbumID")
-                                    .and_then(|m| extract_str(m)),
-                                playback: match props.get("PlaybackStatus") {
-                                    Some(&MessageItem::Str(ref status)) => Some(PlaybackInfo {
-                                        playing: status == "Playing",
-                                        progress: Duration::from_millis(
-                                            (props
-                                                .get("Position")
-                                                .and_then(|m| extract_i64(m))
-                                                .unwrap_or(-1)
-                                                / 1000)
-                                                as u64,
-                                        ),
-                                        total: Duration::from_millis(
-                                            (get_entry(&metas, "mpris:length")
-                                                .and_then(|m| extract_i64(&m))
-                                                .unwrap_or(-1)
-                                                / 1000)
-                                                as u64,
-                                        ),
-                                        playlist_index: 0,
-                                        playlist_total: 0,
-                                    }),
-                                    _ => None,
-                                },
-                            };
+                        Duration::from_millis(500),
+                    );
 
-                            let mut writer = last_value.write().unwrap();
-                            *writer = (*updater)(state);
-                            tx.send(()).unwrap();
-                        }
+                    if let Ok(metadata) =
+                        properties.get("org.mpris.MediaPlayer2.Player", "Metadata")
+                    {
+                        let metadata: HashMap<String, Variant<Box<dyn RefArg>>> = metadata;
+                        let get_entry = |t| {
+                            metadata
+                                .get(t)
+                                .and_then(|s| s.as_str())
+                                .map(ToString::to_string)
+                        };
+
+                        let playback_info = if let Ok(status) =
+                            properties.get("org.mpris.MediaPlayer2.Player", "PlaybackStatus")
+                        {
+                            let s: String = status;
+                            let position: i64 = properties
+                                .get("org.mpris.MediaPlayer2.Player", "Position")
+                                .unwrap_or(-1);
+                            let length: i64 = metadata
+                                .get("mpris:length")
+                                .and_then(RefArg::as_i64)
+                                .unwrap_or(-1);
+                            Some(PlaybackInfo {
+                                playing: s == "Playing",
+                                progress: Duration::from_millis((position / 1000) as u64),
+                                total: Duration::from_millis((length / 1000) as u64),
+                                playlist_index: 0,
+                                playlist_total: 0,
+                            })
+                        } else {
+                            None
+                        };
+
+                        let state = SongInfo {
+                            title: get_entry("xesam:title").unwrap_or_default(),
+                            artist: get_entry("xesam:artist").unwrap_or_default(),
+                            album: get_entry("xesam:album").unwrap_or_default(),
+                            filename: get_entry("xesam:url").unwrap_or_default(),
+                            musicbrainz_track: get_entry("xesam:musicBrainzTrackID"),
+                            musicbrainz_artist: get_entry("xesam:musicBrainzArtistID"),
+                            musicbrainz_album: get_entry("xesam:musicBrainzAlbumID"),
+                            playback: playback_info,
+                        };
+
+                        let mut writer = last_value.write().unwrap();
+                        *writer = (*updater)(state);
+                        tx.send(()).unwrap();
                     }
                 } else {
                     let mut writer = last_value.write().unwrap();
