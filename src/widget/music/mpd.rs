@@ -1,12 +1,13 @@
-use super::{MusicBackend, MusicControl, PlaybackInfo, SongInfo};
-use format::data::Format;
+use crate::widget::base::Sender;
+use crate::widget::music::{MusicBackend, MusicControl, PlaybackInfo, SongInfo};
+use crate::format::data::Format;
 use nom::IResult;
+use nom::{do_parse, error_position, named, sep, tag, take, take_until, take_until_and_consume, wrap_sep, ws};
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
-use widget::base::Sender;
 
 named!(parse_playback_info<&[u8], PlaybackInfo>,
     do_parse!(
@@ -141,7 +142,7 @@ where
                 {
                     let mut writer = last_value.write().unwrap();
                     *writer = (*updater)(state);
-                    tx.send(());
+                    tx.send(()).unwrap();
                 }
 
                 // Wait for event

@@ -1,5 +1,5 @@
-use super::base::{Sender, Widget};
-use format::data::Format;
+use crate::widget::base::{Sender, Widget};
+use crate::format::data::Format;
 
 pub struct Wrap<W, F> {
     widget: Box<W>,

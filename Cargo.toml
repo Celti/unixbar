@@ -9,6 +9,7 @@ readme = "README.md"
 homepage = "https://github.com/myfreeweb/unixbar"
 repository = "https://github.com/myfreeweb/unixbar"
 build = "build.rs"
+edition = "2018"
 
 [features]
 default = ["systemstat", "xkb", "dbus"]

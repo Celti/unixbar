@@ -1,5 +1,5 @@
-use super::base::{Sender, Widget};
-use format::data::Format;
+use crate::widget::base::{Sender, Widget};
+use crate::format::data::Format;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use std::{io, thread};
@@ -35,7 +35,7 @@ where
                     *writer = (*formatter)(measurement.done());
                     measurement = (*updater)();
                 }
-                tx.send(());
+                tx.send(()).unwrap();
             }
         });
     }

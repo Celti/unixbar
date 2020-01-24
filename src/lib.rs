@@ -1,33 +1,16 @@
-extern crate chrono;
-#[macro_use]
-extern crate nom;
-#[cfg(target_os = "linux")]
-extern crate alsa;
-#[cfg(feature = "dbus")]
-extern crate dbus;
-extern crate libc;
-#[cfg(feature = "systemstat")]
-extern crate systemstat;
-#[cfg(feature = "xkb")]
-extern crate xcb;
-#[macro_use]
-extern crate crossbeam_channel;
-extern crate serde;
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
-
 pub mod format;
 pub mod widget;
 
 pub use format::*;
-use std::collections::BTreeMap;
 pub use widget::*;
+
+use crossbeam_channel::select;
+use std::collections::BTreeMap;
 
 pub struct UnixBar<F: Formatter> {
     formatter: F,
-    widgets: Vec<Box<Widget>>,
-    fns: BTreeMap<String, Box<FnMut()>>,
+    widgets: Vec<Box<dyn Widget>>,
+    fns: BTreeMap<String, Box<dyn FnMut()>>,
 }
 
 impl<F: Formatter> UnixBar<F> {
@@ -47,7 +30,7 @@ impl<F: Formatter> UnixBar<F> {
         self
     }
 
-    pub fn add(&mut self, widget: Box<Widget>) -> &mut UnixBar<F> {
+    pub fn add(&mut self, widget: Box<dyn Widget>) -> &mut UnixBar<F> {
         self.widgets.push(widget);
         self
     }
@@ -65,7 +48,7 @@ impl<F: Formatter> UnixBar<F> {
             loop {
                 line.clear();
                 if stdin.read_line(&mut line).is_ok() {
-                    stdin_tx.send(line.clone());
+                    stdin_tx.send(line.clone()).unwrap();
                 }
             }
         });

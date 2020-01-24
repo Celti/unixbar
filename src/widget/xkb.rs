@@ -1,5 +1,5 @@
-use super::base::{Sender, Widget};
-use format::data::Format;
+use crate::widget::base::{Sender, Widget};
+use crate::format::data::Format;
 use std::sync::{Arc, RwLock};
 use std::thread;
 use xcb;
@@ -65,7 +65,7 @@ where
                                 *id_writer = new_id;
                                 let mut writer = last_value.write().unwrap();
                                 *writer = (*formatter)(new_id);
-                                tx.send(());
+                                tx.send(()).unwrap();
                             }
                         }
                     }

@@ -1,7 +1,7 @@
-use format::data::Format;
+use crate::format::data::Format;
+use crate::widget::base::{Sender, Widget};
 use std::sync::Arc;
 use std::time::Duration;
-use widget::base::{Sender, Widget};
 
 pub mod mpd;
 pub use self::mpd::MPDMusic;

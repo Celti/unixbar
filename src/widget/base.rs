@@ -1,5 +1,5 @@
 pub use crossbeam_channel::Sender;
-use format::data::Format;
+use crate::format::data::Format;
 
 pub trait Widget {
     fn current_value(&self) -> Format;

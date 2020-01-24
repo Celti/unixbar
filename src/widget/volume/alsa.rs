@@ -2,8 +2,8 @@ use alsa::ctl::Ctl;
 use alsa::mixer::{Mixer, SelemChannelId, SelemId};
 use alsa::PollDescriptors;
 
-use format::data::Format;
-use widget::base::Sender;
+use crate::format::data::Format;
+use crate::widget::base::Sender;
 
 use std::ffi::CString;
 use std::sync::{Arc, RwLock};
@@ -87,7 +87,7 @@ where
 
                     let mut writer = last_value.write().unwrap();
                     *writer = (*updater)(state);
-                    tx.send(());
+                    tx.send(()).unwrap();
                 }
                 _ => continue,
             }

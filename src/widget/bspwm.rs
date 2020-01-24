@@ -1,6 +1,7 @@
-use super::base::{Sender, Widget};
-use format::data::Format;
+use crate::widget::base::{Sender, Widget};
+use crate::format::data::Format;
 use nom::IResult;
+use nom::{complete, do_parse, error_position, many0, named, one_of, opt, tag, take, take_until_and_consume};
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, RwLock};
@@ -110,7 +111,7 @@ where
                     let line = line.unwrap_or_default();
                     if let IResult::Done(_, result) = bspstr(&line.into_bytes()) {
                         *writer = (*updater)(result);
-                        tx.send(());
+                        tx.send(()).unwrap();
                     }
                 }
                 thread::sleep(Duration::from_millis(500));

@@ -1,6 +1,6 @@
-use format::data::Format;
+use crate::format::data::Format;
+use crate::widget::base::{Sender, Widget};
 use std::sync::Arc;
-use widget::base::{Sender, Widget};
 
 #[cfg(target_os = "linux")]
 pub mod alsa;

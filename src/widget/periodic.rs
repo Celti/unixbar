@@ -1,5 +1,5 @@
-use super::base::{Sender, Widget};
-use format::data::Format;
+use crate::widget::base::{Sender, Widget};
+use crate::format::data::Format;
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
@@ -28,7 +28,7 @@ where
                 let mut writer = last_value.write().unwrap();
                 *writer = (*updater)();
             }
-            tx.send(());
+            tx.send(()).unwrap();
         });
     }
 }

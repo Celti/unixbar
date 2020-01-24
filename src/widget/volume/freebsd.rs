@@ -1,5 +1,5 @@
-use format::data::Format;
-use widget::base::Sender;
+use crate::format::data::Format;
+use crate::widget::base::Sender;
 
 use std::os::unix::io::AsRawFd;
 use std::sync::{Arc, RwLock};
@@ -79,7 +79,7 @@ where
                 let mut writer = last_value.write().unwrap();
                 *writer = (*updater)(FreeBSDSound::get_volume_state((*mixer).as_raw_fd()));
             }
-            let _ = tx.send(());
+            tx.send(()).unwrap();
             thread::sleep(Duration::from_secs(4));
         });
     }

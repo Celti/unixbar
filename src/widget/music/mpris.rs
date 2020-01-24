@@ -1,11 +1,11 @@
-use super::{MusicBackend, MusicControl, PlaybackInfo, SongInfo};
+use crate::format::data::Format;
+use crate::widget::base::Sender;
+use crate::widget::music::{MusicBackend, MusicControl, PlaybackInfo, SongInfo};
 use dbus::arg::Array;
 use dbus::{BusType, Connection, Message, MessageItem, Props};
-use format::data::Format;
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
-use widget::base::Sender;
 
 fn find_player(bus: &Connection) -> Option<String> {
     let m = Message::new_method_call(
@@ -187,7 +187,7 @@ where
 
                             let mut writer = last_value.write().unwrap();
                             *writer = (*updater)(state);
-                            tx.send(());
+                            tx.send(()).unwrap();
                         }
                     }
                 } else {
@@ -202,7 +202,7 @@ where
                         musicbrainz_album: None,
                         playback: None,
                     });
-                    tx.send(());
+                    tx.send(()).unwrap();
                     thread::sleep(Duration::from_millis(1000)); // more sleepy without player
                 }
 

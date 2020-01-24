@@ -1,6 +1,6 @@
-use super::base::{Sender, Widget};
+use crate::widget::base::{Sender, Widget};
+use crate::format::data::Format;
 use chrono::Local;
-use format::data::Format;
 use std::thread;
 use std::time::Duration;
 
@@ -17,7 +17,7 @@ impl Widget for DateTime {
         let seconds = if self.format.contains("%S") { 1 } else { 60 };
         thread::spawn(move || loop {
             thread::sleep(Duration::from_secs(seconds));
-            tx.send(());
+            tx.send(()).unwrap();
         });
     }
 }
