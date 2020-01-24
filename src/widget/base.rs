@@ -1,4 +1,4 @@
-pub use chan::Sender;
+pub use crossbeam_channel::Sender;
 use format::data::Format;
 
 pub trait Widget {

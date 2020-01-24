@@ -11,7 +11,7 @@ extern crate systemstat;
 #[cfg(feature = "xkb")]
 extern crate xcb;
 #[macro_use]
-extern crate chan;
+extern crate crossbeam_channel;
 extern crate serde;
 extern crate serde_json;
 #[macro_use]
@@ -53,12 +53,12 @@ impl<F: Formatter> UnixBar<F> {
     }
 
     pub fn run(&mut self) {
-        let (wid_tx, wid_rx) = chan::async();
+        let (wid_tx, wid_rx) = crossbeam_channel::unbounded();
         for widget in &mut self.widgets {
             widget.spawn_notifier(wid_tx.clone());
         }
         self.show();
-        let (stdin_tx, stdin_rx) = chan::async();
+        let (stdin_tx, stdin_rx) = crossbeam_channel::unbounded();
         std::thread::spawn(move || {
             let stdin = std::io::stdin();
             let mut line = String::new();
@@ -70,9 +70,9 @@ impl<F: Formatter> UnixBar<F> {
             }
         });
         loop {
-            chan_select! {
-                wid_rx.recv() => self.show(),
-                stdin_rx.recv() -> line => self.formatter.handle_stdin(line, &mut self.fns),
+            select! {
+                recv(wid_rx) -> _ => self.show(),
+                recv(stdin_rx) -> line => self.formatter.handle_stdin(line.ok(), &mut self.fns),
             }
         }
     }
