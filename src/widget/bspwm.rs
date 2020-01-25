@@ -1,7 +1,6 @@
 use crate::widget::base::{Sender, Widget};
 use crate::format::data::Format;
-use nom::IResult;
-use nom::{complete, do_parse, error_position, many0, named, one_of, opt, tag, take, take_until_and_consume};
+use nom::{complete, do_parse, many0, named, one_of, opt, tag, take, take_until};
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, RwLock};
@@ -45,14 +44,17 @@ pub struct BspwmDesktop {
     pub urgent: bool,
 }
 
+
+
 named!(bspstr<&[u8], BspwmState>,
     do_parse!(
         tag!("WM") >>
-        take_until_and_consume!(":") >>
+        take_until!(":") >>
+        take!(1) >>
         d: many0!(
             do_parse!(
                 mode: one_of!(&"oOfFuU"[..]) >>
-                name: take_until_and_consume!(":") >>
+                name: take_until!(":") >> take!(1) >>
                 (BspwmDesktop {
                     name: String::from_utf8_lossy(name).into_owned(),
                     occupied: mode == 'o' || mode == 'O',
@@ -109,7 +111,7 @@ where
                 for line in BufReader::new(bspc.stdout.unwrap()).lines() {
                     let mut writer = last_value.write().unwrap();
                     let line = line.unwrap_or_default();
-                    if let IResult::Done(_, result) = bspstr(&line.into_bytes()) {
+                    if let Ok((_, result)) = bspstr(&line.into_bytes()) {
                         *writer = (*updater)(result);
                         tx.send(()).unwrap();
                     }

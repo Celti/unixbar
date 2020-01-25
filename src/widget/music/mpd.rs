@@ -1,8 +1,7 @@
 use crate::widget::base::Sender;
 use crate::widget::music::{MusicBackend, MusicControl, PlaybackInfo, SongInfo};
 use crate::format::data::Format;
-use nom::IResult;
-use nom::{do_parse, error_position, named, sep, tag, take, take_until, take_until_and_consume, wrap_sep, ws};
+use nom::{do_parse, named, tag, take, take_until, ws};
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, RwLock};
@@ -13,7 +12,8 @@ named!(parse_playback_info<&[u8], PlaybackInfo>,
     do_parse!(
         tag!("[") >>
         playing: take_until!("]") >>
-        take_until_and_consume!("#") >>
+        take_until!("#") >>
+        take!(1) >>
         playlist_index: take_until!("/") >>
         take!(1) >>
         playlist_total: take_until!(" ") >>
@@ -66,7 +66,7 @@ fn get_playback_info() -> Option<PlaybackInfo> {
     for line in BufReader::new(mpc.stdout.unwrap()).lines() {
         let line = line.unwrap_or_default();
         match parse_playback_info(&line.into_bytes()) {
-            IResult::Done(_, playback_info) => return Some(playback_info),
+            Ok((_, playback_info)) => return Some(playback_info),
             _ => continue,
         }
     }
