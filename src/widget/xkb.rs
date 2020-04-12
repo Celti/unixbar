@@ -2,7 +2,6 @@ use crate::widget::base::{Sender, Widget};
 use crate::format::data::Format;
 use std::sync::{Arc, RwLock};
 use std::thread;
-use xcb;
 use xcb::xkb;
 
 pub struct Xkb<F: Fn(u8) -> Format> {
@@ -70,8 +69,6 @@ where
                         }
                     }
                 }
-            } else {
-                return;
             }
         });
     }

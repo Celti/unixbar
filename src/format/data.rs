@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt;
 
 #[derive(Debug, Clone, Copy)]
 pub enum MouseButton {
@@ -45,11 +46,11 @@ pub enum ClickAction {
     ShellCommand(MouseButton, String),
 }
 
-impl ClickAction {
-    pub fn to_string(&self) -> String {
+impl fmt::Display for ClickAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            ClickAction::Function(ref mb, ref name) => format!("f{:?}{}", mb, name),
-            ClickAction::ShellCommand(ref mb, ref cmd) => format!("s{:?}{}", mb, cmd),
+            ClickAction::Function(ref mb, ref name) => write!(f, "f{:?}{}", mb, name),
+            ClickAction::ShellCommand(ref mb, ref cmd) => write!(f, "s{:?}{}", mb, cmd),
         }
     }
 }
@@ -58,7 +59,7 @@ impl ClickAction {
 pub enum Format {
     UnescapedStr(String),
     Str(String),
-    Concat(Vec<Box<Format>>),
+    Concat(Vec<Format>),
     Align(Alignment, Box<Format>),
     FgColor(String, Box<Format>),
     BgColor(String, Box<Format>),
@@ -99,7 +100,7 @@ macro_rules! bfmt {
     };
     (no_sep $($rest:tt)*) => { Format::NoSeparator(Box::new(bfmt!($($rest)*))) };
     (pad[$pad:expr] $($rest:tt)*) => { Format::Padding($pad, Box::new(bfmt!($($rest)*))) };
-    (multi[$(($($rest:tt)*)),*]) => { Format::Concat(vec![ $( Box::new(bfmt!( $($rest)* )) ),* ]) };
+    (multi[$(($($rest:tt)*)),*]) => { Format::Concat(vec![ $( bfmt!( $($rest)* ) ),* ]) };
     ($e:expr) => { $e };
     () => { Format::UnescapedStr(String::new()) };
 }

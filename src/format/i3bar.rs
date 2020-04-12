@@ -63,6 +63,7 @@ impl Formatter for I3BarFormatter {
 }
 
 impl I3BarFormatter {
+    #[allow(clippy::new_without_default)] // new() relies upon side-effects.
     pub fn new() -> I3BarFormatter {
         println!("{{\"version\":1,\"click_events\":true}}");
         println!("[");
